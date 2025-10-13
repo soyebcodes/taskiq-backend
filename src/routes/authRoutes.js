@@ -1,7 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import generateToken from "../utils/generateToken.js";
 
 const router = express.Router();
 
@@ -31,11 +31,7 @@ router.post("/signup", async (req,res) => {
         })
 
         // Generate JWT token
-        const token = jwt.sign({
-            id: newUser._id,
-            email: newUser.email,
-
-        }, process.env.JWT_SECRET, {expiresIn: "7d"})
+        const token = generateToken(newUser);
 
         // Return success response
         res.status(201).json({
@@ -54,5 +50,47 @@ router.post("/signup", async (req,res) => {
     }
 })
 
+
+// POST /auth/login
+router.post("/login", async (req,res) => {
+    try {
+        const {email, password} = req.body;
+
+        // validate input
+        if(!email || !password) {
+            return res.status(400).json({message: "Please provide all required fields."})
+
+        }
+
+        // check if user exists
+        const user = await User.findOne({email});
+        if (!user) {
+            return res.status(400).json({message: "Invalid email or password."})
+        }
+
+        // compare passwords
+        const isMatch = await bcrypt.compare(password, user.password)
+        if(!isMatch) {
+            return res.status(400).json({message: "Invalid email or password."})
+        }
+
+        // generate JWT token
+        const token = generateToken(user);
+
+        // Respond with token + user info
+        res.status(200).json({
+            message: "Login successful.",
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+            },
+            token,
+        })
+    } catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({message: "Server error. Please try again later."})
+    }
+})
 
 export default router;
