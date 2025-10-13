@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js"
+import tasks from "./routes/tasks.js"
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.get("/", (req, res) => {
 
 // Routes
 app.use("/auth", authRoutes)
+app.use("/tasks", tasks)
 
 // Start server and connect to DB
 const PORT = process.env.PORT || 5000;
