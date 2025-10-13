@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import authRoutes from "./routes/authRoutes.js"
 
 dotenv.config();
 
@@ -16,6 +17,9 @@ app.get("/", (req, res) => {
     res.json({message: "TaskIQ API is running."});
 })
 
+
+// Routes
+app.use("/auth", authRoutes)
 
 // Start server and connect to DB
 const PORT = process.env.PORT || 5000;
