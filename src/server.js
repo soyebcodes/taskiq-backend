@@ -6,6 +6,7 @@ import cors from "cors";
 import authRoutes from "./routes/authRoutes.js"
 import taskRoutes from "./routes/taskRoutes.js"
 import aiRoutes from "./routes/aiRoutes.js"
+import exportRoutes from "./routes/exportRoutes.js"
 
 
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes)
 app.use("/tasks", taskRoutes)
 app.use("/ai", aiRoutes)
+app.use("/export", exportRoutes);
 
 
 
