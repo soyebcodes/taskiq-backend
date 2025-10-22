@@ -64,6 +64,25 @@ router.put("/:id", protect, async (req, res) => {
   }
 });
 
+
+// Mark task as complete
+router.post("/:id/complete", protect, async (req, res) => {
+  try {
+    const task = await Task.findById(req.params.id);
+    if (!task) return res.status(404).json({ message: "Task not found." });
+
+    task.status = "done";
+    task.completedAt = new Date();
+    await task.save();
+
+    res.status(200).json({ success: true, task });
+  } catch (error) {
+    console.error("Complete task error:", error.message);
+    res.status(500).json({ message: "Server error." });
+  }
+});
+
+
 // Delete a task by id
 router.delete("/:id", protect, async (req, res) => {
   try {
