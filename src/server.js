@@ -1,11 +1,13 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes.js"
 import taskRoutes from "./routes/taskRoutes.js"
+import aiRoutes from "./routes/aiRoutes.js"
 
-dotenv.config();
+
 
 const app = express();
 
@@ -22,6 +24,9 @@ app.get("/", (req, res) => {
 // Routes
 app.use("/auth", authRoutes)
 app.use("/tasks", taskRoutes)
+app.use("/ai", aiRoutes)
+
+
 
 // Start server and connect to DB
 const PORT = process.env.PORT || 5000;
