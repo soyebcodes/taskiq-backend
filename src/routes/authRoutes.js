@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import generateToken from "../utils/generateToken.js";
+import { protect } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -92,5 +93,23 @@ router.post("/login", async (req,res) => {
         res.status(500).json({message: "Server error. Please try again later."})
     }
 })
+
+
+router.get('/me', protect, async (req, res) => {
+  try {
+    // req.user is set by your authMiddleware after verifying JWT
+    const user = await User.findById(req.user.id).select('-password'); // Exclude password
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 export default router;

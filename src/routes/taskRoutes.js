@@ -7,20 +7,24 @@ const router = express.Router();
 // Create new task
 router.post("/", protect, async (req, res) => {
   try {
-    const { title, description, status, priority, dueDate } = req.body;
+    const { title, description, status, priority, dueDate, labels } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Title is required." });
     }
+    
     const task = await Task.create({
       user: req.user._id,
       title,
       description,
-      status,
-      priority,
+      status: status || 'todo', // Default to 'todo'
+      priority: priority || 'medium',
       dueDate,
+      labels: labels || [],
     });
-    res.status(201).json(task);
+    
+    // CHANGE: Return in format frontend expects
+    res.status(201).json({ task });
   } catch (error) {
     console.error("Create Task error:", error);
     res.status(500).json({ message: "Server error while creating task." });
@@ -33,7 +37,9 @@ router.get("/", protect, async (req, res) => {
     const tasks = await Task.find({ user: req.user._id }).sort({
       createdAt: -1,
     });
-    res.json(tasks);
+    
+    // CHANGE: Return in format frontend expects
+    res.json({ tasks });
   } catch (error) {
     console.error("Get Tasks error:", error);
     res.status(500).json({ message: "Server error while fetching tasks." });
@@ -57,13 +63,14 @@ router.put("/:id", protect, async (req, res) => {
     const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
-    res.json(updatedTask);
+    
+    // CHANGE: Return in format frontend expects
+    res.json({ task: updatedTask });
   } catch (error) {
     console.error("Update Task error:", error);
     res.status(500).json({ message: "Server error while updating task." });
   }
 });
-
 
 // Mark task as complete
 router.post("/:id/complete", protect, async (req, res) => {
@@ -71,17 +78,18 @@ router.post("/:id/complete", protect, async (req, res) => {
     const task = await Task.findById(req.params.id);
     if (!task) return res.status(404).json({ message: "Task not found." });
 
-    task.status = "done";
+    // CHANGE: Use 'completed' to match frontend types
+    task.status = "completed";
     task.completedAt = new Date();
     await task.save();
 
+    // Response format is already correct
     res.status(200).json({ success: true, task });
   } catch (error) {
     console.error("Complete task error:", error.message);
     res.status(500).json({ message: "Server error." });
   }
 });
-
 
 // Delete a task by id
 router.delete("/:id", protect, async (req, res) => {
