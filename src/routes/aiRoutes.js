@@ -1,74 +1,55 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import { protect } from '../middlewares/authMiddleware.js';
+import Task from '../models/Task.js';
 
 const router = express.Router();
 
 // POST /ai/prioritize
-router.post('/prioritize', protect, async (req, res) => {
+router.post("/prioritize", protect, async (req, res) => {
   try {
-    const { tasks } = req.body;
+    const { taskIds } = req.body;
+    if (!taskIds || taskIds.length === 0)
+      return res.status(400).json({ message: "No tasks provided." });
 
-    if (!tasks || tasks.length === 0) {
-      return res.status(400).json({ message: 'No tasks provided.' });
-    }
+    const tasks = await Task.find({
+      _id: { $in: taskIds },
+      userId: req.user.id,
+    }).lean();
 
-    // Prepare task list for prompt
-    const taskList = tasks
-      .map(
-        (t, i) =>
-          `${i + 1}. ${t.title} (Priority: ${t.priority}, Due: ${t.dueDate || 'N/A'})`
-      )
-      .join('\n');
+    if (!tasks || tasks.length === 0)
+      return res.status(404).json({ message: "No matching tasks found." });
 
+    // Pollinations AI request
     const prompt = `
-You are a productivity assistant. The user has the following tasks:
-
-${taskList}
-
-Please:
-1. Reorder them from most to least important.
-2. Give 1–2 sentences explaining why each is placed in that order.
-3. Provide a short summary: (Top priorities / Can wait / Optional)
-Return as structured JSON:
-{
-  "orderedTasks": [
-    { "title": "Task title", "reason": "Explanation" }
-  ],
-  "summary": "Short paragraph summary"
-}
+      You are a productivity assistant. Prioritize these tasks:
+      ${tasks.map((t) => `- ${t.title}: ${t.description}`).join("\n")}
+      Return a JSON with "summary" and "orderedTasks" (sorted by priority).
     `;
 
-    // Call Pollinations AI text generation endpoint
-    const response = await fetch(
-      `https://text.pollinations.ai/${encodeURIComponent(prompt)}`
-    );
-    const aiText = await response.text();
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai", prompt }),
+    });
 
-    // Attempt to parse the response as JSON
-    let parsed;
+    const text = await response.text();
+    const safeText = text.replace(/```json|```/g, "").trim();
+
+    let aiData;
     try {
-      parsed = JSON.parse(aiText);
-    } catch (e) {
-      console.error('Pollinations AI returned non-JSON:', aiText);
-      parsed = {
-        orderedTasks: tasks.map((t) => ({
-          title: t.title,
-          reason: 'AI failed to parse JSON, showing original order.',
-        })),
-        summary: 'AI failed to produce structured JSON.',
-      };
+      aiData = JSON.parse(safeText);
+    } catch {
+      aiData = { summary: safeText, orderedTasks: [] };
     }
 
-    res.status(200).json({ success: true, data: parsed });
+    res.json(aiData);
   } catch (error) {
-    console.error('AI Prioritize error:', error.message);
-    res.status(500).json({
-      success: false,
-      message: 'AI service error. Check your Pollinations AI usage.',
-    });
+    console.error("AI Prioritize error:", error);
+    res.status(500).json({ message: "AI service error. Check your Pollinations AI usage." });
   }
 });
+
 
 
 // AI summary
