@@ -70,4 +70,60 @@ Return as structured JSON:
   }
 });
 
+
+// AI summary
+router.post("/summary", protect, async (req, res) => {
+  try {
+    const { date } = req.body; // optional: default to today
+    const targetDate = date ? new Date(date) : new Date();
+
+    const tasks = await Task.find({
+      userId: req.user.id,
+      completedAt: { $gte: new Date(targetDate.setHours(0,0,0,0)), $lte: new Date(targetDate.setHours(23,59,59,999)) }
+    }).lean();
+
+    if (!tasks.length) return res.status(200).json({ summary: "No tasks completed today." });
+
+    const taskList = tasks.map((t, i) => `${i + 1}. ${t.title} (${t.status})`).join("\n");
+
+    const prompt = `
+You are a productivity assistant. The user completed the following tasks today:
+
+${taskList}
+
+Please provide a concise summary with:
+1. Completed tasks
+2. Pending tasks
+3. Suggested focus items for tomorrow
+Return structured JSON:
+{
+  "summary": "Short paragraph summary",
+  "completedTasks": [],
+  "pendingTasks": []
+}
+`;
+
+    const response = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}`);
+    const aiText = await response.text();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(aiText);
+    } catch (e) {
+      parsed = {
+        summary: "AI failed to produce structured summary.",
+        completedTasks: tasks.map(t => t.title),
+        pendingTasks: [],
+      };
+    }
+
+    res.status(200).json({ success: true, data: parsed });
+
+  } catch (error) {
+    console.error("AI summary error:", error.message);
+    res.status(500).json({ message: "Server error." });
+  }
+});
+
+
 export default router;
